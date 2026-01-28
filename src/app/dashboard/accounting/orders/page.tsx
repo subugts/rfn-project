@@ -69,17 +69,31 @@ export default function AccountingOrdersPage() {
     }
   };
 
-  const getPriceForM3 = (contract: Contract, m3: number): number => {
-    for (const range of contract.priceRanges) {
-      if (m3 >= range.minM3 && m3 < range.maxM3) {
-        return range.unitPrice;
+  const calculateTieredPrice = (contract: Contract, m3: number): number => {
+    let totalPrice = 0;
+    const ranges = [...contract.priceRanges].sort((a, b) => a.minM3 - b.minM3);
+
+    for (let i = 0; i < ranges.length; i++) {
+      const range = ranges[i];
+      const nextRange = ranges[i + 1];
+      const rangeMax = nextRange ? nextRange.minM3 : range.maxM3;
+
+      if (m3 <= range.minM3) {
+        break;
+      }
+
+      const quantityInRange = Math.min(m3, rangeMax) - Math.max(0, range.minM3);
+      if (quantityInRange > 0) {
+        totalPrice += quantityInRange * range.unitPrice;
       }
     }
-    const lastRange = contract.priceRanges[contract.priceRanges.length - 1];
-    if (m3 >= lastRange.minM3) {
-      return lastRange.unitPrice;
-    }
-    return contract.priceRanges[0].unitPrice;
+
+    return totalPrice;
+  };
+
+  const getAveragePriceForM3 = (contract: Contract, m3: number): number => {
+    const totalPrice = calculateTieredPrice(contract, m3);
+    return m3 > 0 ? Math.round((totalPrice / m3) * 100) / 100 : 0;
   };
 
   const handleContractChange = (contractId: string) => {
@@ -107,8 +121,8 @@ export default function AccountingOrdersPage() {
         );
       }
 
-      const calculatedPrice = getPriceForM3(selectedContract, m3);
-      setFormData((prev) => ({ ...prev, unitPrice: calculatedPrice.toString() }));
+      const averagePrice = getAveragePriceForM3(selectedContract, m3);
+      setFormData((prev) => ({ ...prev, unitPrice: averagePrice.toString() }));
     }
   };
 
@@ -128,11 +142,15 @@ export default function AccountingOrdersPage() {
     }
 
     try {
+      const m3 = parseFloat(formData.m3Amount);
+      const totalPrice = calculateTieredPrice(selectedContract, m3);
+
       const data = {
         contractId: formData.contractId,
         customerId: selectedContract?.customerId,
-        m3Amount: parseFloat(formData.m3Amount),
+        m3Amount: m3,
         unitPrice: parseFloat(formData.unitPrice),
+        totalPrice: totalPrice,
         deliveryDate: formData.deliveryDate || undefined,
       };
 
@@ -217,11 +235,11 @@ export default function AccountingOrdersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Birim Fiyat (₺)
+                  Ortalama Birim Fiyat (₺)
                 </label>
                 <input
                   type="number"
-                  step="10"
+                  step="0.01"
                   value={formData.unitPrice}
                   onChange={(e) =>
                     setFormData({ ...formData, unitPrice: e.target.value })
@@ -246,6 +264,40 @@ export default function AccountingOrdersPage() {
                 />
               </div>
             </div>
+
+            {selectedContract && formData.m3Amount && (
+              <div className="p-4 bg-green-50 border-l-4 border-green-400 rounded">
+                <p className="text-sm font-semibold text-gray-900 mb-3">Fiyat Hesaplaması:</p>
+                <div className="space-y-2">
+                  {selectedContract.priceRanges
+                    .sort((a, b) => a.minM3 - b.minM3)
+                    .map((range, idx) => {
+                      const nextRange = selectedContract.priceRanges[idx + 1];
+                      const rangeMax = nextRange ? nextRange.minM3 : range.maxM3;
+                      const m3 = parseFloat(formData.m3Amount);
+                      
+                      if (m3 <= range.minM3) return null;
+                      
+                      const quantityInRange = Math.min(m3, rangeMax) - Math.max(0, range.minM3);
+                      if (quantityInRange <= 0) return null;
+                      
+                      const priceInRange = quantityInRange * range.unitPrice;
+                      
+                      return (
+                        <div key={idx} className="flex justify-between text-sm text-gray-700">
+                          <span>
+                            {range.minM3}-{rangeMax}m³: {quantityInRange.toFixed(2)}m³ × ₺{range.unitPrice} = <span className="font-semibold">₺{priceInRange.toLocaleString('tr-TR')}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  <div className="border-t border-green-200 pt-2 mt-2 flex justify-between font-semibold text-gray-900">
+                    <span>Toplam:</span>
+                    <span>₺{(calculateTieredPrice(selectedContract, parseFloat(formData.m3Amount))).toLocaleString('tr-TR')}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {selectedContract && (
               <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
