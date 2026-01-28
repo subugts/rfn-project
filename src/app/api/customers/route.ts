@@ -6,6 +6,9 @@ const mockCustomers = [
     id: 'cust-1',
     code: 'CUST001',
     name: 'ABC İnşaat A.Ş.',
+    contactPerson: 'Ahmet Yılmaz',
+    billingAddress: 'İstanbul, Bahçelievler Mah. Atatürk Cad. No:123',
+    officeAddress: 'İstanbul, Bahçelievler Mah. Atatürk Cad. No:123',
     active: true,
     notes: 'Önemli müşteri',
     createdAt: new Date('2026-01-01'),
@@ -15,6 +18,9 @@ const mockCustomers = [
     id: 'cust-2',
     code: 'CUST002',
     name: 'XYZ Yapı Ltd.',
+    contactPerson: 'Mehmet Şahin',
+    billingAddress: 'Ankara, Çankaya Mah. İnönü Cad. No:456',
+    officeAddress: 'Ankara, Çankaya Mah. İnönü Cad. No:456',
     active: true,
     notes: 'Regular müşteri',
     createdAt: new Date('2026-01-05'),
@@ -24,6 +30,9 @@ const mockCustomers = [
     id: 'cust-3',
     code: 'CUST003',
     name: 'Teknik Gayrimenkul',
+    contactPerson: 'Fatma Kaya',
+    billingAddress: 'İzmir, Alsancak Mah. Gazi Cad. No:789',
+    officeAddress: 'İzmir, Alsancak Mah. Gazi Cad. No:789',
     active: true,
     notes: null,
     createdAt: new Date('2026-01-10'),
@@ -48,7 +57,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { code, name, notes } = body;
+    const { code, name, contactPerson, billingAddress, officeAddress, notes } = body;
 
     // Check if code exists
     const existingCustomer = mockCustomers.find((c) => c.code === code);
@@ -63,6 +72,9 @@ export async function POST(req: NextRequest) {
       id: `cust-${mockCustomers.length + 1}`,
       code,
       name,
+      contactPerson: contactPerson || null,
+      billingAddress: billingAddress || null,
+      officeAddress: officeAddress || null,
       active: true,
       notes: notes || null,
       createdAt: new Date(),

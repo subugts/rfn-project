@@ -17,6 +17,7 @@ interface Contract {
   startDate: Date;
   endDate: Date | null;
   active: boolean;
+  description?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ const mockContracts: Contract[] = [
     startDate: new Date('2026-01-01'),
     endDate: new Date('2026-12-31'),
     active: true,
+    description: 'Yüksek binaların yapılması için hazır beton',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-29'),
   },
@@ -54,6 +56,7 @@ const mockContracts: Contract[] = [
     startDate: new Date('2026-02-01'),
     endDate: null,
     active: true,
+    description: 'Residential complex inşaatı - Aylık 150+ m3 bekleniyor',
     createdAt: new Date('2026-02-01'),
     updatedAt: new Date('2026-01-29'),
   },
@@ -70,6 +73,7 @@ const mockContracts: Contract[] = [
     startDate: new Date('2026-01-15'),
     endDate: new Date('2026-06-30'),
     active: true,
+    description: 'Ticari bina - Premium beton kalitesi gerekli',
     createdAt: new Date('2026-01-15'),
     updatedAt: new Date('2026-01-29'),
   },
@@ -101,7 +105,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { customerId, siteCode, siteName, m3Limit, priceRanges, endDate } =
+    const { customerId, siteCode, siteName, m3Limit, priceRanges, endDate, description } =
       body;
 
     // Check if site code exists for this customer
@@ -128,6 +132,7 @@ export async function POST(req: NextRequest) {
       startDate: new Date(),
       endDate: endDate ? new Date(endDate) : null,
       active: true,
+      description: description || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

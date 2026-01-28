@@ -20,6 +20,7 @@ interface Contract {
   startDate: string;
   endDate: string | null;
   active: boolean;
+  description?: string | null;
 }
 
 interface Customer {
@@ -39,6 +40,7 @@ export default function ContractsPage() {
     siteName: '',
     m3Limit: '',
     endDate: '',
+    description: '',
   });
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([
     { minM3: 0, maxM3: 100, unitPrice: 1000 },
@@ -99,6 +101,7 @@ export default function ContractsPage() {
         m3Limit: parseFloat(formData.m3Limit),
         priceRanges,
         endDate: formData.endDate || undefined,
+        description: formData.description || undefined,
       };
 
       const response = await axios.post('/api/contracts', data, {
@@ -114,6 +117,7 @@ export default function ContractsPage() {
         siteName: '',
         m3Limit: '',
         endDate: '',
+        description: '',
       });
       setPriceRanges([{ minM3: 0, maxM3: 100, unitPrice: 1000 }]);
       setShowForm(false);
@@ -221,6 +225,21 @@ export default function ContractsPage() {
                     setFormData({ ...formData, endDate: e.target.value })
                   }
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Açıklama
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                  rows={3}
+                  placeholder="Sözleşmeye ilişkin açıklamalar, notlar, özel şartlar vb..."
                 />
               </div>
             </div>
@@ -331,6 +350,9 @@ export default function ContractsPage() {
                     Şantiye Adı
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Açıklama
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     M3 Limiti
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
@@ -356,6 +378,15 @@ export default function ContractsPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
                         {contract.siteName}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {contract.description ? (
+                          <div className="max-w-xs truncate" title={contract.description}>
+                            {contract.description}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
                         {contract.currentM3Used} / {contract.m3Limit} m³

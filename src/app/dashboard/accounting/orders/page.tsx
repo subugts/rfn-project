@@ -69,21 +69,23 @@ export default function AccountingOrdersPage() {
     }
   };
 
-  const calculateTieredPrice = (contract: Contract, m3: number): number => {
+  const calculateTieredPrice = (contract: Contract, newM3: number): number => {
     let totalPrice = 0;
     const ranges = [...contract.priceRanges].sort((a, b) => a.minM3 - b.minM3);
+    const currentUsed = contract.currentM3Used;
+    const totalM3AfterOrder = currentUsed + newM3;
 
     for (let i = 0; i < ranges.length; i++) {
       const range = ranges[i];
       const nextRange = ranges[i + 1];
       const rangeMax = nextRange ? nextRange.minM3 : range.maxM3;
 
-      if (m3 <= range.minM3) {
-        break;
-      }
+      // Yeni M3'ün bu range'e giren kısmı
+      const rangeStart = Math.max(currentUsed, range.minM3);
+      const rangeEnd = Math.min(totalM3AfterOrder, rangeMax);
 
-      const quantityInRange = Math.min(m3, rangeMax) - Math.max(0, range.minM3);
-      if (quantityInRange > 0) {
+      if (rangeEnd > rangeStart) {
+        const quantityInRange = rangeEnd - rangeStart;
         totalPrice += quantityInRange * range.unitPrice;
       }
     }
@@ -91,9 +93,9 @@ export default function AccountingOrdersPage() {
     return totalPrice;
   };
 
-  const getAveragePriceForM3 = (contract: Contract, m3: number): number => {
-    const totalPrice = calculateTieredPrice(contract, m3);
-    return m3 > 0 ? Math.round((totalPrice / m3) * 100) / 100 : 0;
+  const getAveragePriceForM3 = (contract: Contract, newM3: number): number => {
+    const totalPrice = calculateTieredPrice(contract, newM3);
+    return newM3 > 0 ? Math.round((totalPrice / newM3) * 100) / 100 : 0;
   };
 
   const handleContractChange = (contractId: string) => {
@@ -267,26 +269,30 @@ export default function AccountingOrdersPage() {
 
             {selectedContract && formData.m3Amount && (
               <div className="p-4 bg-green-50 border-l-4 border-green-400 rounded">
-                <p className="text-sm font-semibold text-gray-900 mb-3">Fiyat Hesaplaması:</p>
+                <p className="text-sm font-semibold text-gray-900 mb-3">Fiyat Hesaplaması (Mevcut: {selectedContract.currentM3Used}m³):</p>
                 <div className="space-y-2">
                   {selectedContract.priceRanges
                     .sort((a, b) => a.minM3 - b.minM3)
                     .map((range, idx) => {
                       const nextRange = selectedContract.priceRanges[idx + 1];
                       const rangeMax = nextRange ? nextRange.minM3 : range.maxM3;
-                      const m3 = parseFloat(formData.m3Amount);
+                      const newM3 = parseFloat(formData.m3Amount);
+                      const currentUsed = selectedContract.currentM3Used;
+                      const totalAfter = currentUsed + newM3;
                       
-                      if (m3 <= range.minM3) return null;
+                      // Yeni M3'ün bu range'e giren kısmı
+                      const rangeStart = Math.max(currentUsed, range.minM3);
+                      const rangeEnd = Math.min(totalAfter, rangeMax);
                       
-                      const quantityInRange = Math.min(m3, rangeMax) - Math.max(0, range.minM3);
-                      if (quantityInRange <= 0) return null;
+                      if (rangeEnd <= rangeStart) return null;
                       
+                      const quantityInRange = rangeEnd - rangeStart;
                       const priceInRange = quantityInRange * range.unitPrice;
                       
                       return (
                         <div key={idx} className="flex justify-between text-sm text-gray-700">
                           <span>
-                            {range.minM3}-{rangeMax}m³: {quantityInRange.toFixed(2)}m³ × ₺{range.unitPrice} = <span className="font-semibold">₺{priceInRange.toLocaleString('tr-TR')}</span>
+                            {rangeStart}-{rangeEnd}m³: {quantityInRange.toFixed(2)}m³ × ₺{range.unitPrice} = <span className="font-semibold">₺{priceInRange.toLocaleString('tr-TR')}</span>
                           </span>
                         </div>
                       );

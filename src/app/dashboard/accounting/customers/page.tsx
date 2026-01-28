@@ -7,6 +7,9 @@ interface Customer {
   id: string;
   code: string;
   name: string;
+  contactPerson?: string | null;
+  billingAddress?: string | null;
+  officeAddress?: string | null;
   active: boolean;
 }
 
@@ -17,6 +20,9 @@ export default function AccountingCustomersPage() {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
+    contactPerson: '',
+    billingAddress: '',
+    officeAddress: '',
   });
 
   useEffect(() => {
@@ -45,6 +51,9 @@ export default function AccountingCustomersPage() {
       const data = {
         code: formData.code,
         name: formData.name,
+        contactPerson: formData.contactPerson || undefined,
+        billingAddress: formData.billingAddress || undefined,
+        officeAddress: formData.officeAddress || undefined,
       };
 
       await axios.post('/api/customers', data, {
@@ -53,7 +62,7 @@ export default function AccountingCustomersPage() {
         },
       });
 
-      setFormData({ code: '', name: '' });
+      setFormData({ code: '', name: '', contactPerson: '', billingAddress: '', officeAddress: '' });
       setShowForm(false);
       fetchCustomers();
     } catch (error) {
@@ -84,7 +93,7 @@ export default function AccountingCustomersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Cari Kodu
+                  Cari Kodu *
                 </label>
                 <input
                   type="text"
@@ -98,7 +107,7 @@ export default function AccountingCustomersPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Cari Adı
+                  Cari Adı *
                 </label>
                 <input
                   type="text"
@@ -108,6 +117,45 @@ export default function AccountingCustomersPage() {
                   }
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Yetkili Adı Soyadı
+                </label>
+                <input
+                  type="text"
+                  value={formData.contactPerson}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contactPerson: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Fatura Adresi
+                </label>
+                <input
+                  type="text"
+                  value={formData.billingAddress}
+                  onChange={(e) =>
+                    setFormData({ ...formData, billingAddress: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
+                  Ofis / İş Merkezi Adresi
+                </label>
+                <input
+                  type="text"
+                  value={formData.officeAddress}
+                  onChange={(e) =>
+                    setFormData({ ...formData, officeAddress: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                 />
               </div>
             </div>
@@ -143,6 +191,15 @@ export default function AccountingCustomersPage() {
                     Adı
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Yetkili
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Fatura Adresi
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Ofis Adresi
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Durum
                   </th>
                 </tr>
@@ -155,6 +212,27 @@ export default function AccountingCustomersPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {customer.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {customer.contactPerson || '-'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {customer.billingAddress ? (
+                        <div className="max-w-xs truncate" title={customer.billingAddress}>
+                          {customer.billingAddress}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {customer.officeAddress ? (
+                        <div className="max-w-xs truncate" title={customer.officeAddress}>
+                          {customer.officeAddress}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
