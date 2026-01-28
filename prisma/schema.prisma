@@ -1,0 +1,398 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SHIPPING
+  ACCOUNTING
+  OPERATOR
+}
+
+enum OrderStatus {
+  DRAFT
+  OPEN
+  PRODUCTION
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// User ve Authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  orders         Order[]
+  deliveries     Delivery[]
+  comments       Comment[]
+  priceChanges   PriceChange[]
+  contractUpdates ContractUpdate[]
+
+  @@index([role])
+  @@index([email])
+}
+
+// Cari (Customer/Account)
+model Customer {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  active            Boolean  @default(true)
+  defaultUnitPrice  Float    @default(0)
+  m3Limit           Float    @default(0)
+  currentM3Used     Float    @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  orders           Order[]
+  priceRanges      CustomerPriceRange[]
+  contracts        Contract[]
+  deliverySchedules DeliverySchedule[]
+
+  @@index([code])
+  @@index([active])
+}
+
+// Sipariş
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status          OrderStatus @default(DRAFT)
+  
+  // Quantities
+  m3Amount        Float
+  totalPrice      Float
+  unitPrice       Float
+  
+  // Contract & Pricing
+  contractId      String?
+  contract        Contract?   @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  
+  // Dates
+  orderDate       DateTime    @default(now())
+  deliveryDate    DateTime?
+  completionDate  DateTime?
+  
+  // Tracking
+  createdBy       String
+  creator         User        @relation(fields: [createdBy], references: [id])
+  notes           String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  deliveries      Delivery[]
+  comments        Comment[]
+  priceChanges    PriceChange[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([orderDate])
+  @@index([orderNumber])
+}
+
+// Cari Birim Fiyat Aralığı (M3 sınırına göre farklı fiyatlar)
+model CustomerPriceRange {
+  id              String   @id @default(cuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  m3From          Float
+  m3To            Float?
+  unitPrice       Float
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([customerId, m3From])
+  @@index([customerId])
+}
+
+// Sözleşme
+model Contract {
+  id              String   @id @default(cuid())
+  customerId      String
+  customer        Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  contractNumber  String   @unique
+  startDate       DateTime
+  endDate         DateTime
+  m3Limit         Float
+  unitPrice       Float
+  
+  active          Boolean  @default(true)
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  orders          Order[]
+  updates         ContractUpdate[]
+
+  @@index([customerId])
+  @@index([active])
+}
+
+// Sözleşme Güncellemeleri Takibi
+model ContractUpdate {
+  id              String   @id @default(cuid())
+  contractId      String
+  contract        Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  
+  changedBy       String
+  changedByUser   User     @relation(fields: [changedBy], references: [id])
+  
+  changeType      String   // "M3_LIMIT", "UNIT_PRICE", "STATUS", etc.
+  oldValue        String?
+  newValue        String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([contractId])
+}
+
+// Fiyat Değişiklikleri Takibi (Muhasebe tarafından)
+model PriceChange {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  changedBy       String
+  changedByUser   User     @relation(fields: [changedBy], references: [id])
+  
+  oldPrice        Float
+  newPrice        Float
+  reason          String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// Teslimat Takvimi & Şantiye Teslimi
+model DeliverySchedule {
+  id              String            @id @default(cuid())
+  customerId      String
+  customer        Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  siteLocation    String            // Şantiye konumu
+  scheduledDate   DateTime
+  m3Amount        Float
+  status          DeliveryStatus    @default(SCHEDULED)
+  
+  notes           String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  deliveries      Delivery[]
+
+  @@index([customerId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+// Teslimat Tablosu
+model Delivery {
+  id              String            @id @default(cuid())
+  deliveryId      String            @unique
+  
+  orderId         String
+  order           Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  scheduleId      String?
+  schedule        DeliverySchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  
+  driverId        String?           // Şoför bilgisi
+  vehicleId       String?           // Araç bilgisi
+  
+  status          DeliveryStatus    @default(SCHEDULED)
+  actualDeliveryDate DateTime?
+  
+  m3Delivered     Float?
+  
+  createdBy       String
+  createdByUser   User              @relation(fields: [createdBy], references: [id])
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  trackingEvents  TrackingEvent[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// Teslimat Takip Olayları
+model TrackingEvent {
+  id              String   @id @default(cuid())
+  deliveryId      String
+  delivery        Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  
+  eventType       String   // "DISPATCH", "IN_TRANSIT", "ARRIVED", "COMPLETED", "FAILED"
+  location        String?
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([deliveryId])
+}
+
+// Üretim Planı & Sipariş Detayları
+model ProductionPlan {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  
+  m3Planned       Float
+  m3Completed     Float    @default(0)
+  
+  startDate       DateTime?
+  completionDate  DateTime?
+  
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Operatör Yorumları & Öneriler
+model Comment {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  content         String
+  commentType     String   @default("NOTE") // NOTE, SUGGESTION, WARNING, INFO
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([commentType])
+}
+
+// Harici Sistem İntegrasyonu - Iconia (E-İrsaliye)
+model IconiaIntegration {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  
+  iconiaDocId     String?
+  iconiaDocNumber String?
+  
+  status          String   @default("PENDING") // PENDING, SYNCED, ERROR
+  errorMessage    String?
+  
+  lastSyncedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Harici Sistem İntegrasyonu - MCsoft (Üretim)
+model MCsoftIntegration {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  
+  mcSoftJobId     String?
+  
+  sentData        String?  // JSON
+  receivedData    String?  // JSON
+  
+  status          String   @default("PENDING") // PENDING, SYNCED, ERROR
+  errorMessage    String?
+  
+  lastSyncedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Queue Sistemi - İleti Takip ve Retry
+model QueueMessage {
+  id              String   @id @default(cuid())
+  
+  type            String   // "SEND_TO_ICONIA", "SEND_TO_MCSOFT", "UPDATE_ORDER", etc.
+  payload         String   // JSON
+  
+  status          String   @default("PENDING") // PENDING, PROCESSING, SUCCESS, FAILED, DEAD_LETTER
+  attempts        Int      @default(0)
+  maxAttempts     Int      @default(5)
+  
+  errorMessage    String?
+  lastError       DateTime?
+  
+  relatedOrderId  String?
+  relatedIntegration String? // "ICONIA" | "MCSOFT"
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  processedAt     DateTime?
+  failedAt        DateTime?
+
+  @@index([status])
+  @@index([type])
+  @@index([relatedOrderId])
+  @@index([createdAt])
+}
+
+// Audit Log
+model AuditLog {
+  id              String   @id @default(cuid())
+  
+  action          String
+  entityType      String
+  entityId        String
+  
+  oldValue        String?
+  newValue        String?
+  
+  userId          String?
+  ipAddress       String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+}
