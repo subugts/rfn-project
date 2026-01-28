@@ -1,39 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { requireRole } from '@/lib/auth/permissions';
-import { UserRole } from '@prisma/client';
-import { z } from 'zod';
 
-const createCustomerSchema = z.object({
-  code: z.string().min(1).max(50),
-  name: z.string().min(2).max(255),
-  defaultUnitPrice: z.number().positive(),
-  m3Limit: z.number().positive(),
-  notes: z.string().optional(),
-});
+// Mock customers (development only)
+const mockCustomers = [
+  {
+    id: 'cust-1',
+    code: 'CUST001',
+    name: 'ABC İnşaat A.Ş.',
+    m3Limit: 1000,
+    currentM3Used: 350,
+    active: true,
+    notes: 'Önemli müşteri',
+    priceRanges: [
+      { minM3: 0, maxM3: 120, unitPrice: 1000 },
+      { minM3: 120, maxM3: 500, unitPrice: 950 },
+      { minM3: 500, maxM3: 1000, unitPrice: 900 },
+    ],
+    createdAt: new Date('2026-01-01'),
+    updatedAt: new Date('2026-01-29'),
+  },
+  {
+    id: 'cust-2',
+    code: 'CUST002',
+    name: 'XYZ Yapı Ltd.',
+    m3Limit: 500,
+    currentM3Used: 150,
+    active: true,
+    notes: 'Regular müşteri',
+    priceRanges: [
+      { minM3: 0, maxM3: 100, unitPrice: 1100 },
+      { minM3: 100, maxM3: 500, unitPrice: 1050 },
+    ],
+    createdAt: new Date('2026-01-05'),
+    updatedAt: new Date('2026-01-29'),
+  },
+  {
+    id: 'cust-3',
+    code: 'CUST003',
+    name: 'Teknik Gayrimenkul',
+    m3Limit: 800,
+    currentM3Used: 200,
+    active: true,
+    notes: null,
+    priceRanges: [
+      { minM3: 0, maxM3: 150, unitPrice: 1050 },
+      { minM3: 150, maxM3: 800, unitPrice: 1000 },
+    ],
+    createdAt: new Date('2026-01-10'),
+    updatedAt: new Date('2026-01-29'),
+  },
+];
 
 // GET /api/customers
 export async function GET(req: NextRequest) {
   try {
-    await requireRole(UserRole.ACCOUNTING, UserRole.SHIPPING, UserRole.ADMIN);
-
-    const customers = await prisma.customer.findMany({
-      where: { active: true },
-      include: {
-        priceRanges: true,
-        contracts: {
-          where: { active: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return NextResponse.json(customers);
+    return NextResponse.json(mockCustomers);
   } catch (error) {
     console.error('Get customers error:', error);
     return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
+      { error: 'Internal server error' },
+      { status: 500 }
     );
   }
 }
@@ -41,17 +66,11 @@ export async function GET(req: NextRequest) {
 // POST /api/customers
 export async function POST(req: NextRequest) {
   try {
-    await requireRole(UserRole.ACCOUNTING, UserRole.ADMIN);
-
     const body = await req.json();
-    const { code, name, defaultUnitPrice, m3Limit, notes } =
-      createCustomerSchema.parse(body);
+    const { code, name, m3Limit, priceRanges, notes } = body;
 
     // Check if code exists
-    const existingCustomer = await prisma.customer.findUnique({
-      where: { code },
-    });
-
+    const existingCustomer = mockCustomers.find((c) => c.code === code);
     if (existingCustomer) {
       return NextResponse.json(
         { error: 'Customer with this code already exists' },
@@ -59,25 +78,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const customer = await prisma.customer.create({
-      data: {
-        code,
-        name,
-        defaultUnitPrice,
-        m3Limit,
-        notes: notes || null,
-      },
-    });
+    const newCustomer = {
+      id: `cust-${mockCustomers.length + 1}`,
+      code,
+      name,
+      m3Limit,
+      currentM3Used: 0,
+      active: true,
+      priceRanges: priceRanges || [
+        { minM3: 0, maxM3: m3Limit, unitPrice: 1000 },
+      ],
+      notes: notes || null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
-    return NextResponse.json(customer, { status: 201 });
+    mockCustomers.push(newCustomer);
+
+    return NextResponse.json(newCustomer, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     console.error('Create customer error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

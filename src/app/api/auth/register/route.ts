@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
 import { createToken, setAuthCookie } from '@/lib/auth/jwt';
-import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { UserRole } from '@prisma/client';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -12,15 +9,16 @@ const registerSchema = z.object({
   role: z.enum(['SHIPPING', 'ACCOUNTING', 'OPERATOR']),
 });
 
+// Mock users for development (in-memory storage)
+let mockUsers: any[] = [];
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { email, password, name, role } = registerSchema.parse(body);
 
     // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = mockUsers.find((u) => u.email === email);
 
     if (existingUser) {
       return NextResponse.json(
@@ -29,17 +27,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = {
+      id: `user-${Date.now()}`,
+      email,
+      password,
+      name,
+      role,
+    };
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: role as UserRole,
-      },
-    });
+    mockUsers.push(user);
 
     const token = await createToken({
       userId: user.id,

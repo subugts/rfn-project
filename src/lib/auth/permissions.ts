@@ -1,5 +1,6 @@
 import { getSession } from './jwt';
-import { UserRole } from '@prisma/client';
+
+export type UserRole = 'ADMIN' | 'SHIPPING' | 'ACCOUNTING' | 'OPERATOR';
 
 export async function requireAuth() {
   const session = await getSession();

@@ -4,20 +4,25 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { z } from 'zod';
 
+interface PriceRange {
+  minM3: number;
+  maxM3: number;
+  unitPrice: number;
+}
+
 interface Customer {
   id: string;
   code: string;
   name: string;
-  defaultUnitPrice: number;
   m3Limit: number;
   currentM3Used: number;
   active: boolean;
+  priceRanges: PriceRange[];
 }
 
 const createCustomerSchema = z.object({
   code: z.string().min(1),
   name: z.string().min(2),
-  defaultUnitPrice: z.number().positive(),
   m3Limit: z.number().positive(),
 });
 
@@ -28,9 +33,11 @@ export default function AccountingCustomersPage() {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    defaultUnitPrice: '',
     m3Limit: '',
   });
+  const [priceRanges, setPriceRanges] = useState<PriceRange[]>([
+    { minM3: 0, maxM3: 100, unitPrice: 1000 },
+  ]);
 
   useEffect(() => {
     fetchCustomers();
@@ -51,6 +58,26 @@ export default function AccountingCustomersPage() {
     }
   };
 
+  const handleAddPriceRange = () => {
+    const lastRange = priceRanges[priceRanges.length - 1];
+    setPriceRanges([
+      ...priceRanges,
+      { minM3: lastRange.maxM3, maxM3: lastRange.maxM3 + 100, unitPrice: 1000 },
+    ]);
+  };
+
+  const handleRemovePriceRange = (index: number) => {
+    if (priceRanges.length > 1) {
+      setPriceRanges(priceRanges.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleUpdatePriceRange = (index: number, field: string, value: any) => {
+    const updated = [...priceRanges];
+    updated[index] = { ...updated[index], [field]: value };
+    setPriceRanges(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -58,8 +85,8 @@ export default function AccountingCustomersPage() {
       const data = {
         code: formData.code,
         name: formData.name,
-        defaultUnitPrice: parseFloat(formData.defaultUnitPrice),
         m3Limit: parseFloat(formData.m3Limit),
+        priceRanges,
       };
 
       createCustomerSchema.parse(data);
@@ -70,11 +97,13 @@ export default function AccountingCustomersPage() {
         },
       });
 
-      setFormData({ code: '', name: '', defaultUnitPrice: '', m3Limit: '' });
+      setFormData({ code: '', name: '', m3Limit: '' });
+      setPriceRanges([{ minM3: 0, maxM3: 100, unitPrice: 1000 }]);
       setShowForm(false);
       fetchCustomers();
     } catch (error) {
       console.error('Failed to create customer:', error);
+      alert('Cari oluşturma başarısız oldu');
     }
   };
 

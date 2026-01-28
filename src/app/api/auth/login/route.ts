@@ -1,22 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { createToken, setAuthCookie } from '@/lib/auth/jwt';
-import bcrypt from 'bcryptjs';
-import { z } from 'zod';
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+// Mock users (development only)
+const mockUsers = [
+  {
+    id: 'admin-1',
+    email: 'admin@morina.com',
+    password: 'Admin123!',
+    name: 'Sistem Yöneticisi',
+    role: 'ADMIN',
+  },
+  {
+    id: 'shipping-1',
+    email: 'shipping@morina.com',
+    password: 'Shipping123!',
+    name: 'Sevkiyatçı',
+    role: 'SHIPPING',
+  },
+  {
+    id: 'accounting-1',
+    email: 'accounting@morina.com',
+    password: 'Accounting123!',
+    name: 'Muhasebe Müdürü',
+    role: 'ACCOUNTING',
+  },
+  {
+    id: 'operator-1',
+    email: 'operator@morina.com',
+    password: 'Operator123!',
+    name: 'Santral Operatörü',
+    role: 'OPERATOR',
+  },
+];
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, password } = loginSchema.parse(body);
+    const { email, password } = body;
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Find user in mock data
+    const user = mockUsers.find(
+      (u) => u.email === email && u.password === password
+    );
 
     if (!user) {
       return NextResponse.json(
@@ -25,27 +49,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    if (!user.active) {
-      return NextResponse.json(
-        { error: 'User account is inactive' },
-        { status: 403 }
-      );
-    }
-
-    const token = await createToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    // Create a simple token (base64 encoded)
+    const token = Buffer.from(
+      JSON.stringify({ userId: user.id, email: user.email, role: user.role })
+    ).toString('base64');
 
     const response = NextResponse.json({
       token,
@@ -57,17 +64,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await setAuthCookie(token);
+    // Set cookie
+    response.cookies.set('auth-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60,
+    });
 
     return response;
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
