@@ -50,6 +50,8 @@ export default function DashboardLayout({
       { label: 'Siparişler', href: '/dashboard/accounting/orders' },
       { label: 'Cariler', href: '/dashboard/accounting/customers' },
       { label: 'Sözleşmeler', href: '/dashboard/accounting/contracts' },
+      { label: 'Sevkiyat Takvimi', href: '/dashboard/accounting/deliveries' },
+      { label: 'Sevkiyatçı Değişiklikleri', href: '/dashboard/accounting/shipping-changes' },
       { label: 'Fiyatlandırma', href: '/dashboard/accounting/pricing' },
     ],
     OPERATOR: [
