@@ -74,7 +74,8 @@ export default function AccountingCustomersPage() {
 
   const handleUpdatePriceRange = (index: number, field: string, value: any) => {
     const updated = [...priceRanges];
-    updated[index] = { ...updated[index], [field]: value };
+    const numValue = field === 'unitPrice' ? parseFloat(value) : parseFloat(value);
+    updated[index] = { ...updated[index], [field]: numValue };
     setPriceRanges(updated);
   };
 
@@ -111,7 +112,7 @@ export default function AccountingCustomersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Cariler</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Cariler</h1>
           <p className="text-gray-600 mt-1">Müşteri yönetimi</p>
         </div>
         <button
@@ -124,11 +125,11 @@ export default function AccountingCustomersPage() {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Yeni Cari</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Yeni Cari</h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Cari Kodu
                 </label>
                 <input
@@ -137,12 +138,12 @@ export default function AccountingCustomersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, code: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   Cari Adı
                 </label>
                 <input
@@ -151,47 +152,114 @@ export default function AccountingCustomersPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Birim Fiyat (₺)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.defaultUnitPrice}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      defaultUnitPrice: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-900 mb-1">
                   M3 Sınırı
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={formData.m3Limit}
                   onChange={(e) =>
                     setFormData({ ...formData, m3Limit: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
                 />
               </div>
             </div>
+
+            <div className="border-t-2 border-gray-300 pt-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-md font-semibold text-gray-900">
+                  Fiyat Seviyeleri (M3 Aralıkları)
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleAddPriceRange}
+                  className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md"
+                >
+                  + Seviye Ekle
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {priceRanges.map((range, index) => (
+                  <div key={index} className="flex gap-3 items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        M3 Başlangıç
+                      </label>
+                      <input
+                        type="number"
+                        value={range.minM3 || 0}
+                        onChange={(e) =>
+                          handleUpdatePriceRange(
+                            index,
+                            'minM3',
+                            e.target.value
+                          )
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
+                        disabled
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        M3 Bitiş
+                      </label>
+                      <input
+                        type="number"
+                        value={range.maxM3 || 0}
+                        onChange={(e) =>
+                          handleUpdatePriceRange(
+                            index,
+                            'maxM3',
+                            e.target.value
+                          )
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Birim Fiyat (₺)
+                      </label>
+                      <input
+                        type="number"
+                        step="10"
+                        value={range.unitPrice || 0}
+                        onChange={(e) =>
+                          handleUpdatePriceRange(
+                            index,
+                            'unitPrice',
+                            e.target.value
+                          )
+                        }
+                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
+                      />
+                    </div>
+                    {priceRanges.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePriceRange(index)}
+                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md"
+                      >
+                        Sil
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-200"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-200"
             >
               Cari Aç
             </button>
@@ -201,7 +269,7 @@ export default function AccountingCustomersPage() {
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">Cariler Listesi</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Cariler Listesi</h2>
         </div>
 
         <div className="overflow-x-auto">
@@ -211,21 +279,21 @@ export default function AccountingCustomersPage() {
             <div className="p-6 text-center text-gray-500">Cari bulunamadı</div>
           ) : (
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-100 border-b border-gray-300">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Kodu
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Adı
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
-                    Birim Fiyat
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Fiyat Seviyeleri
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     M3 Kullanımı
                   </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Durum
                   </th>
                 </tr>
@@ -233,14 +301,20 @@ export default function AccountingCustomersPage() {
               <tbody className="divide-y divide-gray-200">
                 {customers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50 transition">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
                       {customer.code}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
+                    <td className="px-6 py-4 text-sm text-gray-900">
                       {customer.name}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      ₺{customer.defaultUnitPrice}
+                      <div className="space-y-1">
+                        {customer.priceRanges.map((range, idx) => (
+                          <div key={idx} className="text-xs">
+                            {range.minM3}-{range.maxM3}m³: ₺{range.unitPrice}
+                          </div>
+                        ))}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {customer.currentM3Used} / {customer.m3Limit} m³
