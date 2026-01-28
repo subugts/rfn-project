@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: morina-postgres
+    environment:
+      POSTGRES_DB: morina_db
+      POSTGRES_USER: morina_user
+      POSTGRES_PASSWORD: morina_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - morina-network
+
+  # Redis for Queue System
+  redis:
+    image: redis:7-alpine
+    container_name: morina-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - morina-network
+
+  # Next.js Application
+  app:
+    build: .
+    container_name: morina-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://morina_user:morina_password@postgres:5432/morina_db
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-your-nextauth-secret-change-this}
+      NEXTAUTH_URL: http://localhost:3000
+      REDIS_URL: redis://redis:6379
+      
+      # External API URLs
+      ICONIA_API_URL: ${ICONIA_API_URL:-http://iconia:3001}
+      ICONIA_API_KEY: ${ICONIA_API_KEY}
+      
+      MCSOFT_API_URL: ${MCSOFT_API_URL:-http://mcsoft:3002}
+      MCSOFT_API_KEY: ${MCSOFT_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - morina-network
+    restart: unless-stopped
+
+  # pgAdmin for Database Management (Optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: morina-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@morina.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    networks:
+      - morina-network
+    restart: unless-stopped
+
+  # Redis Commander for Queue Management (Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: morina-redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - morina-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  morina-network:
+    driver: bridge
