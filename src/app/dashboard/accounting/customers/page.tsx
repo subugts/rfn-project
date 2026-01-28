@@ -2,29 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { z } from 'zod';
-
-interface PriceRange {
-  minM3: number;
-  maxM3: number;
-  unitPrice: number;
-}
 
 interface Customer {
   id: string;
   code: string;
   name: string;
-  m3Limit: number;
-  currentM3Used: number;
   active: boolean;
-  priceRanges: PriceRange[];
 }
-
-const createCustomerSchema = z.object({
-  code: z.string().min(1),
-  name: z.string().min(2),
-  m3Limit: z.number().positive(),
-});
 
 export default function AccountingCustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -33,11 +17,7 @@ export default function AccountingCustomersPage() {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
-    m3Limit: '',
   });
-  const [priceRanges, setPriceRanges] = useState<PriceRange[]>([
-    { minM3: 0, maxM3: 100, unitPrice: 1000 },
-  ]);
 
   useEffect(() => {
     fetchCustomers();
@@ -58,27 +38,6 @@ export default function AccountingCustomersPage() {
     }
   };
 
-  const handleAddPriceRange = () => {
-    const lastRange = priceRanges[priceRanges.length - 1];
-    setPriceRanges([
-      ...priceRanges,
-      { minM3: lastRange.maxM3, maxM3: lastRange.maxM3 + 100, unitPrice: 1000 },
-    ]);
-  };
-
-  const handleRemovePriceRange = (index: number) => {
-    if (priceRanges.length > 1) {
-      setPriceRanges(priceRanges.filter((_, i) => i !== index));
-    }
-  };
-
-  const handleUpdatePriceRange = (index: number, field: string, value: any) => {
-    const updated = [...priceRanges];
-    const numValue = field === 'unitPrice' ? parseFloat(value) : parseFloat(value);
-    updated[index] = { ...updated[index], [field]: numValue };
-    setPriceRanges(updated);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,11 +45,7 @@ export default function AccountingCustomersPage() {
       const data = {
         code: formData.code,
         name: formData.name,
-        m3Limit: parseFloat(formData.m3Limit),
-        priceRanges,
       };
-
-      createCustomerSchema.parse(data);
 
       await axios.post('/api/customers', data, {
         headers: {
@@ -98,8 +53,7 @@ export default function AccountingCustomersPage() {
         },
       });
 
-      setFormData({ code: '', name: '', m3Limit: '' });
-      setPriceRanges([{ minM3: 0, maxM3: 100, unitPrice: 1000 }]);
+      setFormData({ code: '', name: '' });
       setShowForm(false);
       fetchCustomers();
     } catch (error) {
@@ -126,7 +80,7 @@ export default function AccountingCustomersPage() {
       {showForm && (
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Yeni Cari</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
@@ -155,105 +109,6 @@ export default function AccountingCustomersPage() {
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1">
-                  M3 Sınırı
-                </label>
-                <input
-                  type="number"
-                  step="1"
-                  value={formData.m3Limit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, m3Limit: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="border-t-2 border-gray-300 pt-4">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-md font-semibold text-gray-900">
-                  Fiyat Seviyeleri (M3 Aralıkları)
-                </h3>
-                <button
-                  type="button"
-                  onClick={handleAddPriceRange}
-                  className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md"
-                >
-                  + Seviye Ekle
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {priceRanges.map((range, index) => (
-                  <div key={index} className="flex gap-3 items-end">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        M3 Başlangıç
-                      </label>
-                      <input
-                        type="number"
-                        value={range.minM3 || 0}
-                        onChange={(e) =>
-                          handleUpdatePriceRange(
-                            index,
-                            'minM3',
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
-                        disabled
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        M3 Bitiş
-                      </label>
-                      <input
-                        type="number"
-                        value={range.maxM3 || 0}
-                        onChange={(e) =>
-                          handleUpdatePriceRange(
-                            index,
-                            'maxM3',
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Birim Fiyat (₺)
-                      </label>
-                      <input
-                        type="number"
-                        step="10"
-                        value={range.unitPrice || 0}
-                        onChange={(e) =>
-                          handleUpdatePriceRange(
-                            index,
-                            'unitPrice',
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border-2 border-gray-400 bg-gray-50 rounded-md text-gray-900 font-medium"
-                      />
-                    </div>
-                    {priceRanges.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePriceRange(index)}
-                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md"
-                      >
-                        Sil
-                      </button>
-                    )}
-                  </div>
-                ))}
               </div>
             </div>
 
@@ -288,12 +143,6 @@ export default function AccountingCustomersPage() {
                     Adı
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Fiyat Seviyeleri
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    M3 Kullanımı
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Durum
                   </th>
                 </tr>
@@ -306,18 +155,6 @@ export default function AccountingCustomersPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       {customer.name}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      <div className="space-y-1">
-                        {customer.priceRanges.map((range, idx) => (
-                          <div key={idx} className="text-xs">
-                            {range.minM3}-{range.maxM3}m³: ₺{range.unitPrice}
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {customer.currentM3Used} / {customer.m3Limit} m³
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span

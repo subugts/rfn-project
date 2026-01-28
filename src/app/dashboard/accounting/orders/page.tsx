@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { z } from 'zod';
 
 interface PriceRange {
   minM3: number;
@@ -10,10 +9,11 @@ interface PriceRange {
   unitPrice: number;
 }
 
-interface Customer {
+interface Contract {
   id: string;
-  code: string;
-  name: string;
+  customerId: string;
+  siteCode: string;
+  siteName: string;
   m3Limit: number;
   currentM3Used: number;
   priceRanges: PriceRange[];
@@ -31,67 +31,67 @@ interface Order {
   createdAt: string;
 }
 
-const createOrderSchema = z.object({
-  customerId: z.string(),
-  m3Amount: z.number().positive(),
-  unitPrice: z.number().positive(),
-  deliveryDate: z.string().optional(),
-});
-
 export default function AccountingOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [warning, setWarning] = useState('');
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [formData, setFormData] = useState({
-    customerId: '',
+    contractId: '',
     m3Amount: '',
     unitPrice: '',
     deliveryDate: '',
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [ordersRes, customersRes] = await Promise.all([
-          axios.get('/api/orders', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          }),
-          axios.get('/api/customers', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          }),
-        ]);
-
-        setOrders(ordersRes.data);
-        setCustomers(customersRes.data);
-      } catch (error) {
-        console.error('Failed to fetch data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
 
-  const getPriceForM3 = (customer: Customer, m3: number): number => {
-    for (const range of customer.priceRanges) {
+  const fetchData = async () => {
+    try {
+      const [ordersRes, contractsRes] = await Promise.all([
+        axios.get('/api/orders', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        }),
+        axios.get('/api/contracts', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        }),
+      ]);
+
+      setOrders(ordersRes.data);
+      setContracts(contractsRes.data);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPriceForM3 = (contract: Contract, m3: number): number => {
+    for (const range of contract.priceRanges) {
       if (m3 >= range.minM3 && m3 < range.maxM3) {
         return range.unitPrice;
       }
     }
-    // Son aralıktan fazlası için son fiyatı kullan
-    const lastRange = customer.priceRanges[customer.priceRanges.length - 1];
+    const lastRange = contract.priceRanges[contract.priceRanges.length - 1];
     if (m3 >= lastRange.minM3) {
       return lastRange.unitPrice;
     }
-    return customer.priceRanges[0].unitPrice;
+    return contract.priceRanges[0].unitPrice;
   };
 
-  const handleCustomerChange = (customerId: string) => {
-    setFormData({ ...formData, customerId });
+  const handleContractChange = (contractId: string) => {
+    setFormData({ ...formData, contractId });
     setWarning('');
+
+    if (contractId) {
+      const contract = contracts.find((c) => c.id === contractId);
+      setSelectedContract(contract || null);
+    } else {
+      setSelectedContract(null);
+    }
   };
 
   const handleM3Change = (m3Str: string) => {
@@ -99,34 +99,29 @@ export default function AccountingOrdersPage() {
     setFormData({ ...formData, m3Amount: m3Str });
     setWarning('');
 
-    if (formData.customerId && m3) {
-      const customer = customers.find((c) => c.id === formData.customerId);
-      if (customer) {
-        const totalM3 = customer.currentM3Used + m3;
-        if (totalM3 > customer.m3Limit) {
-          setWarning(
-            `⚠️ UYARI: M3 sınırını aşacaksınız! Limit: ${customer.m3Limit}m³, Toplam olacak: ${totalM3.toFixed(2)}m³`
-          );
-        }
-
-        // Otomatik fiyat hesapla
-        const calculatedPrice = getPriceForM3(customer, m3);
-        setFormData((prev) => ({ ...prev, unitPrice: calculatedPrice.toString() }));
+    if (selectedContract && m3) {
+      const totalM3 = selectedContract.currentM3Used + m3;
+      if (totalM3 > selectedContract.m3Limit) {
+        setWarning(
+          `⚠️ UYARI: M3 sınırını aşacaksınız! Limit: ${selectedContract.m3Limit}m³, Toplam olacak: ${totalM3.toFixed(2)}m³`
+        );
       }
+
+      const calculatedPrice = getPriceForM3(selectedContract, m3);
+      setFormData((prev) => ({ ...prev, unitPrice: calculatedPrice.toString() }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const customer = customers.find((c) => c.id === formData.customerId);
-    if (customer) {
+    if (selectedContract) {
       const m3 = parseFloat(formData.m3Amount);
-      const totalM3 = customer.currentM3Used + m3;
-      
-      if (totalM3 > customer.m3Limit) {
+      const totalM3 = selectedContract.currentM3Used + m3;
+
+      if (totalM3 > selectedContract.m3Limit) {
         alert(
-          `M3 sınırını aşamazsınız!\nLimit: ${customer.m3Limit}m³\nAl: ${m3}m³\nTopla: ${totalM3.toFixed(2)}m³`
+          `M3 sınırını aşamazsınız!\nLimit: ${selectedContract.m3Limit}m³\nAl: ${m3}m³\nTopla: ${totalM3.toFixed(2)}m³`
         );
         return;
       }
@@ -134,20 +129,25 @@ export default function AccountingOrdersPage() {
 
     try {
       const data = {
-        customerId: formData.customerId,
+        contractId: formData.contractId,
+        customerId: selectedContract?.customerId,
         m3Amount: parseFloat(formData.m3Amount),
         unitPrice: parseFloat(formData.unitPrice),
         deliveryDate: formData.deliveryDate || undefined,
       };
-
-      createOrderSchema.parse(data);
 
       const response = await axios.post('/api/orders', data, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
 
       setOrders([response.data, ...orders]);
-      setFormData({ customerId: '', m3Amount: '', unitPrice: '', deliveryDate: '' });
+      setFormData({
+        contractId: '',
+        m3Amount: '',
+        unitPrice: '',
+        deliveryDate: '',
+      });
+      setSelectedContract(null);
       setWarning('');
       setShowForm(false);
     } catch (error) {
@@ -183,18 +183,18 @@ export default function AccountingOrdersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
-                  Cari
+                  Sözleşme / Şantiye *
                 </label>
                 <select
-                  value={formData.customerId}
-                  onChange={(e) => handleCustomerChange(e.target.value)}
+                  value={formData.contractId}
+                  onChange={(e) => handleContractChange(e.target.value)}
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
                 >
                   <option value="">Seçiniz...</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.code} - {customer.name}
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.siteCode} - {contract.siteName}
                     </option>
                   ))}
                 </select>
@@ -202,7 +202,7 @@ export default function AccountingOrdersPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-1">
-                  M3 Miktarı
+                  M3 Miktarı *
                 </label>
                 <input
                   type="number"
@@ -211,6 +211,7 @@ export default function AccountingOrdersPage() {
                   onChange={(e) => handleM3Change(e.target.value)}
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
+                  disabled={!selectedContract}
                 />
               </div>
 
@@ -227,6 +228,7 @@ export default function AccountingOrdersPage() {
                   }
                   className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-50 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
                   required
+                  disabled={!selectedContract}
                 />
               </div>
 
@@ -245,9 +247,21 @@ export default function AccountingOrdersPage() {
               </div>
             </div>
 
+            {selectedContract && (
+              <div className="p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Seçili Sözleşme:</span> {selectedContract.siteName}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">M3 Limiti:</span> {selectedContract.currentM3Used} / {selectedContract.m3Limit} m³
+                </p>
+              </div>
+            )}
+
             <button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition duration-200"
+              disabled={!selectedContract}
             >
               Sipariş Aç
             </button>
